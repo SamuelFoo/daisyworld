@@ -1,54 +1,89 @@
 import numpy as np
-
-sigma = 5.67037442e-8
-
-# Sun
-R_S = 696340e3
-T_S = 5772 # Surface temperature
-F_S = sigma * T_S**4
-
-# Earth
-R_E = 6371e3
-d_E = 151.31e9
-
-# Mars
-R_M = 3389.5e3
-d_M = 218.58e9
-
-# Venus
-R_V = 6051.8e3
-d_V = 107.95e9
+from constants import *
+from numpy.typing import ArrayLike
+from scipy.integrate import solve_ivp
 
 
-def surface_area(radius):
+def kelvin(celsius: ArrayLike):
+    return celsius + 273.15
+
+
+def celsius(kelvin: ArrayLike):
+    return kelvin - 273.15
+
+
+def surface_area(radius: ArrayLike):
     return 4 * np.pi * radius**2
 
 
-# Constants
-G, A, B = 3.8, 204, 2.17
-
-# Array containing area of each band and its local solar flux
-area_fraction = np.array([0.156434465, 0.152582529, 0.144973505, 0.133794753, 0.119321529, 0.101910213, 0.08198953, 0.060049992, 0.036631824, 0.012311659])
-local_solar_flux_along_normal = np.array([416.6480383, 406.3887808, 386.1228828, 356.349358, 317.8013293, 271.4279772, 218.3711674, 160.4091221, 112.7543514, 73.14499959])
-
-def average_temperature(area_fraction: np.ndarray, temperatures: np.ndarray):
+def average_temperature(area_fraction: np.ndarray, temperatures: np.ndarray) -> float:
     return (area_fraction * temperatures).sum()
 
-def energy_flux_gain(albedo, solar_flux_along_normal, solar_multiplier=1.0):
+
+def energy_flux_gain(
+    albedo: ArrayLike,
+    solar_flux_along_normal: ArrayLike,
+    solar_multiplier: float = 1.0,
+):
     return solar_flux_along_normal * (1 - albedo) * solar_multiplier
 
-def energy_flux_loss(temperature, average_temperature):
+
+def energy_flux_loss(temperature: ArrayLike, average_temperature: float):
     return A + B * celsius(temperature) + G * (temperature - average_temperature)
 
-def kelvin(celsius):
-    return celsius + 273.15
 
-def celsius(kelvin):
-    return kelvin - 273.15
-
-def albedo(temperature):
+def albedo(temperature: np.ndarray):
     albedo = np.zeros_like(temperature)
     threshold = kelvin(-10)
     albedo[temperature >= threshold] = 0.3
     albedo[temperature < threshold] = 0.6
     return albedo
+
+
+def beta(T: ArrayLike):
+    """Daisy's growth
+
+    Args:
+        T (float): Daisy's local temperature
+
+    Returns:
+        float: daisy's growth
+    """
+    return 1 - 0.003265 * (295.5 - T) ** 2
+
+
+def solve(L, A_w, A_b):
+    local_T = lambda alpha_p, alpha_i, T_p: (
+        R * L * S_0 / sigma * (alpha_p - alpha_i) + T_p**4
+    ) ** (1 / 4)
+
+    def f(t, y):
+        A_w, A_b = y
+        A_g = x = 1 - A_w - A_b
+        alpha_p = A_w * alpha_w + A_b * alpha_b + A_g * alpha_g
+        T_p = (L * S_0 / sigma * (1 - alpha_p)) ** (1 / 4)
+
+        T_w = local_T(alpha_p, alpha_i=alpha_w, T_p=T_p)
+        T_b = local_T(alpha_p, alpha_i=alpha_b, T_p=T_p)
+
+        beta_w = beta(T_w)
+        beta_b = beta(T_b)
+
+        return [A_w * (x * beta_w - gamma), A_b * (x * beta_b - gamma)]
+
+    t_f = 50
+    sol = solve_ivp(f, [0, t_f], y0=[A_w, A_b])
+
+    A_w, A_b = sol.y
+    A_g = x = 1 - A_w - A_b
+    alpha_p = A_w * alpha_w + A_b * alpha_b + A_g * alpha_g
+    T_p = (L * S_0 / sigma * (1 - alpha_p)) ** (1 / 4)
+    return T_p[-1], max(A_w[-1], 0.01), max(A_b[-1], 0.01)
+
+
+def years_to_seconds(num_years: float):
+    return num_years * 365 * 24 * 60 * 60
+
+
+def seconds_to_years(seconds: float):
+    return seconds / (365 * 24 * 60 * 60)
