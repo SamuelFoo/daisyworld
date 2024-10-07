@@ -29,6 +29,9 @@ def vw(Ab, Aw, L, D_f=0.003265, T_opt=kelvin(22.5)):
 
 
 def equilibrium(L):
+    """
+    Taken from https://colab.research.google.com/drive/1tmF-7pDIfFTrBC9GTOT_xmd1vc_vh6AU
+    """
     def cost(A):
         """
         Auxillary Function for Cost (to be minimized)
