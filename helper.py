@@ -1,8 +1,7 @@
 import numpy as np
+from constants import *
 from numpy.typing import ArrayLike
 from scipy.integrate import solve_ivp
-
-from constants import *
 
 
 def kelvin(celsius: ArrayLike):
@@ -15,30 +14,6 @@ def celsius(kelvin: ArrayLike):
 
 def surface_area(radius: ArrayLike):
     return 4 * np.pi * radius**2
-
-
-def average_temperature(area_fraction: np.ndarray, temperatures: np.ndarray) -> float:
-    return (area_fraction * temperatures).sum()
-
-
-def energy_flux_gain(
-    albedo: ArrayLike,
-    solar_flux_along_normal: ArrayLike,
-    solar_multiplier: float = 1.0,
-):
-    return solar_flux_along_normal * (1 - albedo) * solar_multiplier
-
-
-def energy_flux_loss(temperature: ArrayLike, average_temperature: float):
-    return A + B * celsius(temperature) + G * (temperature - average_temperature)
-
-
-def albedo(temperature: np.ndarray):
-    albedo = np.zeros_like(temperature)
-    threshold = kelvin(-10)
-    albedo[temperature >= threshold] = 0.3
-    albedo[temperature < threshold] = 0.6
-    return albedo
 
 
 def beta(D_f: float, T_opt: float, T: ArrayLike):
